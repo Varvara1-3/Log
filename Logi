@@ -1,86 +1,54 @@
-totalUsers = []
-class User:
+import asyncio
+import logging
+from aiogram import Bot, Dispatcher, Router, types
+from aiogram.filters import Command
+from aiogram.types import Message
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from config import TOKEN, PRICE
+from payment import create, check
 
- 
-    def __init__(self, name, surname, email, password):
-        self.name = name
-        self.surname = surname
-        self.email = email
-        self.password = password
-        totalUsers.append(self)
+bot = Bot(TOKEN)
+db = Dispatcher()
+router = Router()
+db.include_router(router)
 
-    def getInfo(self):
-        print(self.name)
-        print(self.surname)
-        print(self.email)
-        print(self.password)
 
-    def getName(self):
-        return self.name
+@router.message(Command(commands=['start']))
+async def start_handler(message: Message):
+    await message.answer('Привет!')
 
-    def getSurname(self):
-        return self.surname
 
-    def getEmail(self):
-        return self.email
+@router.message(Command(commands=['buy']))
+async def buy_handler(message: Message):
+    payment_url, payment_id = create(PRICE, message.chat.id)
 
-    def getPassword(self):
-        return self.password
+    builder = InlineKeyboardBuilder()
+    builder.add(types.InlineKeyboardButton(
+        text='Оплатить',
+        url=payment_url
+    ))
+    builder.add(types.InlineKeyboardButton(
+        text='Проверить оплату',
+        callback_data=f'check_{payment_id}'
+    ))
 
-def createUser(name, surname, email, password):
-    return User(name, surname, email, password)
+    await message.answer(f"Счет сформирован!", reply_markup=builder.as_markup())
 
-def inputUser(nameEntry, surnameEntry, emailEntry, passwordEntry):
-    name = str(input(nameEntry + " : "))
-    surname = str(input(surnameEntry + " : "))
-    email = str(input(emailEntry + " : "))
-    password = str(input(passwordEntry + " : "))
-    if validateInputs(name, surname, email, password):
-        return createUser(name, surname, email, password)
+
+@router.callback_query(lambda c: 'check' in c.data)
+async def check_handler(callback: types.CallbackQuery):
+    result = check(callback.data.split('_')[-1])
+    if result:
+        await callback.message.answer('Оплата прошла успешно!')
     else:
-        return False
+        await callback.message.answer('Оплата еще не прошла или возникла ошибка')
+    await callback.answer()
 
-def validateUser(user, password):
-    if user.password == password:
-        return True
-    else:
-        return False
 
-def listUsers():
-    safeUsers = []
-    for user in totalUsers:
-        safeUsers.append({user.name, user.surname, user.email})
-    return safeUsers
+async def main():
+    await db.start_polling(bot, skip_updates=False)
 
-def unsafeList():
-    print("This function should only be used by Admins!")
-    print("Make sure there are no other onlookers to this screen or it's output")
-    print("Confirmation is required before displaying this information")
-    conf = str(input("Are you sure you would like to display this information? (y/n)"))
-    if conf == "y":
-        for user in totalUsers:
-            print(user.name)
-            print(user.surname)
-            print(user.email)
-            print(user.password)
-            return True
-    else:
-        return False
 
-def userExists(email, password):
-    for user in totalUsers:
-        if user.email == email and user.password == password:
-            return True
-        else:
-            return False
-
-def removeUser(email):
-    count = 0
-    indexStore = []
-    while count < len(totalUsers):
-        if(totalUsers[count].email == email):
-            indexStore.append(count)
-        count += 1
-    for index in indexStore:
-        del(totalUsers[index])
-    return True
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+    asyncio.run(main())
