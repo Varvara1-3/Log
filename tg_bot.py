@@ -23,7 +23,7 @@ async def start(message: types.Message):
 
 @dp.message_handler(Text(equals="Все новости"))
 async def get_all_news(message: types.Message):
-    with open("news_dict.json") as file:
+    with open("news_dict.json", encoding='utf-8') as file:
         news_dict = json.load(file)
 
     for k, v in sorted(news_dict.items()):
@@ -43,7 +43,7 @@ async def get_all_news(message: types.Message):
 
 @dp.message_handler(Text(equals="Последние 5 новостей"))
 async def get_last_five_news(message: types.Message):
-    with open("news_dict.json") as file:
+    with open("news_dict.json", encoding='utf-8') as file:
         news_dict = json.load(file)
 
     for k, v in sorted(news_dict.items())[-5:]:
